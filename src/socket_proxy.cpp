@@ -58,22 +58,40 @@ int netsim::socket_proxy::close()
     return real_close_(serverfd_);
 }
 
+const static int RECV_BUFFER_SIZE = 4096;
+
 void netsim::socket_proxy::do_read() {
-    char buffer[4096];
+    char buffer[RECV_BUFFER_SIZE];
 
     int r = 0;
 
-    if ((r = read(serverfd_, buffer, 4096)) < 0) {
-        if (errno == EWOULDBLOCK) {
+    if (type_ & SOCK_DGRAM) {
+        std::cerr << "recvfrom" << std::endl;
+
+        if ((r = ::recvfrom(serverfd_, buffer, RECV_BUFFER_SIZE, 0, NULL, 0)) < 0) {
+            if (errno == EWOULDBLOCK) {
+                return;
+            }
+
+            if (errno == EAGAIN) {
+                return;
+            }
+        }
+    }
+
+    if (type_ & SOCK_STREAM) {
+        if ((r = ::read(serverfd_, buffer, RECV_BUFFER_SIZE)) < 0) {
+            if (errno == EWOULDBLOCK) {
+                return;
+            }
+
+            if (errno == EAGAIN) {
+                return;
+            }
+
+            do_except();
             return;
         }
-
-        if (errno == EAGAIN) {
-            return;
-        }
-
-        do_except();
-        return;
     }
 
     if (r == 0) {
@@ -81,6 +99,7 @@ void netsim::socket_proxy::do_read() {
     }
 
     std::cout << "read: " << r << std::endl;
+    do_except();
 }
 
 void netsim::socket_proxy::do_write() {
@@ -96,6 +115,7 @@ void netsim::socket_proxy::do_write() {
 }
 
 void netsim::socket_proxy::do_except() {
+    std::cerr << "closing" << std::endl;
     on_close_(this);
 }
 

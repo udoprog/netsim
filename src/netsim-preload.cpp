@@ -17,8 +17,8 @@
 #include "dl.h"
 #include "simulator.h"
 
-static netsim::connect_func_t real_connect = nullptr;
-static netsim::socket_func_t real_socket = nullptr;
+static netsim::connect_func_t libc_connect = nullptr;
+static netsim::socket_func_t libc_socket = nullptr;
 
 static netsim::simulator* get_or_setup() {
     static netsim::simulator* sim = nullptr;
@@ -30,8 +30,8 @@ static netsim::simulator* get_or_setup() {
 
     std::lock_guard<std::mutex> lock(lib_mutex);
 
-    real_connect = netsim::rtld_next<netsim::connect_func_t>("connect");
-    real_socket = netsim::rtld_next<netsim::socket_func_t>("socket");
+    libc_connect = netsim::rtld_next<netsim::connect_func_t>("connect");
+    libc_socket = netsim::rtld_next<netsim::socket_func_t>("socket");
 
     // check again, might have been setup.
     if (sim != nullptr) {
@@ -58,15 +58,15 @@ extern "C" {
             return s->connect(addr, addrlen);
         }
 
-        return real_connect(sockfd, addr, addrlen);
+        return libc_connect(sockfd, addr, addrlen);
     }
 
     int socket(int domain, int type, int protocol) {
-        if (!(domain == AF_INET || domain == AF_INET6)) {
-            return real_socket(domain, type, protocol);
-        }
-
         netsim::simulator* sim = get_or_setup();
+
+        if (!(domain == AF_INET || domain == AF_INET6)) {
+            return libc_socket(domain, type, protocol);
+        }
 
         // open fake sockfd.
         int sv[2] = {-1, -1};

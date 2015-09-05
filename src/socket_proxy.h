@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mutex>
+#include <vector>
 
 #include <sys/types.h>
 #include <sys/socket.h>

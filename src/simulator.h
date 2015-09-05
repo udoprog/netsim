@@ -16,7 +16,7 @@ namespace netsim {
             bool writable(socket_proxy* s, bool writable);
             void loop();
         private:
-            int epoll_fd_;
+            int socket_proxy_efd_;
             std::thread thread_;
 
             std::mutex mutex_ = {};

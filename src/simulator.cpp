@@ -9,7 +9,7 @@
 #define MAXEVENTS 64
 
 netsim::simulator::simulator(int epoll_fd) :
-    epoll_fd_(epoll_fd),
+    socket_proxy_efd_(epoll_fd),
     thread_(std::bind(&netsim::simulator::loop, this))
 {
 }
@@ -30,7 +30,7 @@ bool netsim::simulator::add(int clientfd, netsim::socket_proxy* s) {
     event.data.ptr = s;
     event.events = EPOLLIN;
 
-    if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, s->serverfd(), &event) == -1) {
+    if (epoll_ctl(socket_proxy_efd_, EPOLL_CTL_ADD, s->serverfd(), &event) == -1) {
         return false;
     }
 
@@ -43,7 +43,7 @@ bool netsim::simulator::remove(int clientfd, netsim::socket_proxy* s) {
 
     struct epoll_event event;
 
-    if (epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, s->serverfd(), &event) == -1) {
+    if (epoll_ctl(socket_proxy_efd_, EPOLL_CTL_DEL, s->serverfd(), &event) == -1) {
         return false;
     }
 
@@ -63,7 +63,7 @@ bool netsim::simulator::writable(netsim::socket_proxy* s, bool writable) {
         event.events |= EPOLLOUT;
     }
 
-    if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, s->serverfd(), &event) == -1) {
+    if (epoll_ctl(socket_proxy_efd_, EPOLL_CTL_MOD, s->serverfd(), &event) == -1) {
         return false;
     }
 
@@ -74,7 +74,7 @@ void netsim::simulator::loop() {
     struct epoll_event events[MAXEVENTS];
 
     while (!shutdown_) {
-        int n = epoll_wait(epoll_fd_, events, MAXEVENTS, -1);
+        int n = epoll_wait(socket_proxy_efd_, events, MAXEVENTS, -1);
 
         if (n == -1) {
             break;
